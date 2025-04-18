@@ -1,0 +1,84 @@
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline for E-Commerce Application
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend API - Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./api
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build Docker image
+        run: docker build -t ecommerce-api .
+
+  frontend:
+    name: Frontend WebApp - Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./webapp
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build app
+        run: npm run build
+
+      - name: Build Docker image
+        run: docker build -t ecommerce-webapp .
+
+  deploy:
+    name: Deploy to Cloud
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure Docker to use GitHub Packages or Cloud
+        run: echo ${{ secrets.CLOUD_REGISTRY_PASSWORD }} | docker login -u ${{ secrets.CLOUD_REGISTRY_USERNAME }} --password-stdin your-cloud-registry
+
+      - name: Push Docker images
+        run: |
+          docker tag ecommerce-api your-cloud-registry/ecommerce-api:latest
+          docker tag ecommerce-webapp your-cloud-registry/ecommerce-webapp:latest
+          docker push your-cloud-registry/ecommerce-api:latest
+          docker push your-cloud-registry/ecommerce-webapp:latest
+
+      - name: Deploy to Cloud Platform (e.g., AWS ECS, Azure App Service, or GCP Cloud Run)
+        run: echo "Trigger cloud deployment here using CLI or SDK"
